@@ -18,7 +18,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // MARK: - Application Life Cycle
 
     func application(application: UIApplication, didFinishLaunchingWithOptions launchOptions: [NSObject: AnyObject]?) -> Bool {
-        print(coreDataManager.mainManagedObjectContext)
+        // Initialize Storyboard
+        let storyboard = UIStoryboard(name: "Main", bundle: NSBundle.mainBundle())
+
+        // Instantiate Initial View Controller
+        if let viewController = storyboard.instantiateInitialViewController() as? ViewController {
+            // Configure View Controller
+            viewController.coreDataManager = coreDataManager
+
+            // Set Root View Controller
+            window?.rootViewController = viewController
+        }
+        
         return true
     }
 
