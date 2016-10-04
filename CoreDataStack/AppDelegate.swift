@@ -17,9 +17,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     // MARK: - Application Life Cycle
 
-    func application(application: UIApplication, didFinishLaunchingWithOptions launchOptions: [NSObject: AnyObject]?) -> Bool {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]?) -> Bool {
         // Initialize Storyboard
-        let storyboard = UIStoryboard(name: "Main", bundle: NSBundle.mainBundle())
+        let storyboard = UIStoryboard(name: "Main", bundle: Bundle.main)
 
         // Instantiate Initial View Controller
         if let viewController = storyboard.instantiateInitialViewController() as? ViewController {
@@ -33,11 +33,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return true
     }
 
-    func applicationWillResignActive(application: UIApplication) {
+    func applicationWillResignActive(_ application: UIApplication) {
         coreDataManager.saveChanges()
     }
 
-    func applicationWillTerminate(application: UIApplication) {
+    func applicationWillTerminate(_ application: UIApplication) {
         coreDataManager.saveChanges()
     }
 

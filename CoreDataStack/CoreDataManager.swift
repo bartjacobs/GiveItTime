@@ -9,9 +9,9 @@
 import CoreData
 import Foundation
 
-public class CoreDataManager {
+open class CoreDataManager {
 
-    private let modelName: String
+    fileprivate let modelName: String
 
     init(modelName: String) {
         self.modelName = modelName
@@ -19,19 +19,19 @@ public class CoreDataManager {
 
     // MARK: - Core Data Stack
 
-    public private(set) lazy var mainManagedObjectContext: NSManagedObjectContext = {
+    open fileprivate(set) lazy var mainManagedObjectContext: NSManagedObjectContext = {
         // Initialize Managed Object Context
-        let managedObjectContext = NSManagedObjectContext(concurrencyType: .MainQueueConcurrencyType)
+        let managedObjectContext = NSManagedObjectContext(concurrencyType: .mainQueueConcurrencyType)
 
         // Configure Managed Object Context
-        managedObjectContext.parentContext = self.privateManagedObjectContext
+        managedObjectContext.parent = self.privateManagedObjectContext
 
         return managedObjectContext
     }()
 
-    private lazy var privateManagedObjectContext: NSManagedObjectContext = {
+    fileprivate lazy var privateManagedObjectContext: NSManagedObjectContext = {
         // Initialize Managed Object Context
-        let managedObjectContext = NSManagedObjectContext(concurrencyType: .PrivateQueueConcurrencyType)
+        let managedObjectContext = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
 
         // Configure Managed Object Context
         managedObjectContext.persistentStoreCoordinator = self.persistentStoreCoordinator
@@ -39,19 +39,19 @@ public class CoreDataManager {
         return managedObjectContext
     }()
 
-    private lazy var managedObjectModel: NSManagedObjectModel? = {
+    fileprivate lazy var managedObjectModel: NSManagedObjectModel? = {
         // Fetch Model URL
-        guard let modelURL = NSBundle.mainBundle().URLForResource(self.modelName, withExtension: "momd") else {
+        guard let modelURL = Bundle.main.url(forResource: self.modelName, withExtension: "momd") else {
             return nil
         }
 
         // Initialize Managed Object Model
-        let managedObjectModel = NSManagedObjectModel(contentsOfURL: modelURL)
+        let managedObjectModel = NSManagedObjectModel(contentsOf: modelURL)
 
         return managedObjectModel
     }()
 
-    private lazy var persistentStoreCoordinator: NSPersistentStoreCoordinator? = {
+    fileprivate lazy var persistentStoreCoordinator: NSPersistentStoreCoordinator? = {
         guard let managedObjectModel = self.managedObjectModel else {
             return nil
         }
@@ -64,7 +64,7 @@ public class CoreDataManager {
 
         do {
             let options = [ NSMigratePersistentStoresAutomaticallyOption : true, NSInferMappingModelAutomaticallyOption : true ]
-            try persistentStoreCoordinator.addPersistentStoreWithType(NSSQLiteStoreType, configuration: nil, URL: persistentStoreURL, options: options)
+            try persistentStoreCoordinator.addPersistentStore(ofType: NSSQLiteStoreType, configurationName: nil, at: persistentStoreURL, options: options)
 
         } catch {
             let addPersistentStoreError = error as NSError
@@ -78,20 +78,20 @@ public class CoreDataManager {
 
     // MARK: - Computed Properties
 
-    private var persistentStoreURL: NSURL {
+    fileprivate var persistentStoreURL: URL {
         // Helpers
         let storeName = "\(modelName).sqlite"
-        let fileManager = NSFileManager.defaultManager()
+        let fileManager = FileManager.default
 
-        let documentsDirectoryURL = fileManager.URLsForDirectory(.DocumentDirectory, inDomains: .UserDomainMask)[0]
+        let documentsDirectoryURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
 
-        return documentsDirectoryURL.URLByAppendingPathComponent(storeName)
+        return documentsDirectoryURL.appendingPathComponent(storeName)
     }
 
     // MARK: - Helper Methods
 
-    public func saveChanges() {
-        mainManagedObjectContext.performBlockAndWait({
+    open func saveChanges() {
+        mainManagedObjectContext.performAndWait({
             do {
                 if self.mainManagedObjectContext.hasChanges {
                     try self.mainManagedObjectContext.save()
@@ -103,7 +103,7 @@ public class CoreDataManager {
             }
         })
 
-        privateManagedObjectContext.performBlock({
+        privateManagedObjectContext.perform({
             do {
                 if self.privateManagedObjectContext.hasChanges {
                     try self.privateManagedObjectContext.save()
@@ -116,12 +116,12 @@ public class CoreDataManager {
         })
     }
 
-    public func privateChildManagedObjectContext() -> NSManagedObjectContext {
+    open func privateChildManagedObjectContext() -> NSManagedObjectContext {
         // Initialize Managed Object Context
-        let managedObjectContext = NSManagedObjectContext(concurrencyType: .PrivateQueueConcurrencyType)
+        let managedObjectContext = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
 
         // Configure Managed Object Context
-        managedObjectContext.parentContext = mainManagedObjectContext
+        managedObjectContext.parent = mainManagedObjectContext
 
         return managedObjectContext
     }
