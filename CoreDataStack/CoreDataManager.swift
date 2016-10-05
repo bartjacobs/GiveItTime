@@ -11,10 +11,16 @@ import Foundation
 
 open class CoreDataManager {
 
-    fileprivate let modelName: String
+    typealias CoreDataManagerCompletion = () -> ()
 
-    init(modelName: String) {
+    fileprivate let modelName: String
+    fileprivate let completion: CoreDataManagerCompletion
+
+    init(modelName: String, completion: @escaping CoreDataManagerCompletion) {
         self.modelName = modelName
+        self.completion = completion
+
+        setupCoreDataStack()
     }
 
     // MARK: - Core Data Stack
@@ -56,22 +62,8 @@ open class CoreDataManager {
             return nil
         }
 
-        // Helper
-        let persistentStoreURL = self.persistentStoreURL
-
         // Initialize Persistent Store Coordinator
         let persistentStoreCoordinator = NSPersistentStoreCoordinator(managedObjectModel: managedObjectModel)
-
-        do {
-            let options = [ NSMigratePersistentStoresAutomaticallyOption : true, NSInferMappingModelAutomaticallyOption : true ]
-            try persistentStoreCoordinator.addPersistentStore(ofType: NSSQLiteStoreType, configurationName: nil, at: persistentStoreURL, options: options)
-
-        } catch {
-            let addPersistentStoreError = error as NSError
-
-            print("Unable to Add Persistent Store")
-            print("\(addPersistentStoreError.localizedDescription)")
-        }
 
         return persistentStoreCoordinator
     }()
@@ -124,6 +116,39 @@ open class CoreDataManager {
         managedObjectContext.parent = mainManagedObjectContext
 
         return managedObjectContext
+    }
+
+    // MARK: - Private Helper Methods
+
+    fileprivate func setupCoreDataStack() {
+        // Fetch Persistent Store Coordinator
+        let _ = mainManagedObjectContext.persistentStoreCoordinator
+
+        DispatchQueue.global().async {
+            // Add Persistent Store
+            self.addPersistentStore()
+
+            // Invoke Completion On Main Queue
+            DispatchQueue.main.async { self.completion() }
+        }
+    }
+
+    fileprivate func addPersistentStore() {
+        guard let persistentStoreCoordinator = persistentStoreCoordinator else { fatalError("Unable to Initialize Persistent Store Coordinator") }
+
+        // Helper
+        let persistentStoreURL = self.persistentStoreURL
+
+        do {
+            let options = [ NSMigratePersistentStoresAutomaticallyOption : true, NSInferMappingModelAutomaticallyOption : true ]
+            try persistentStoreCoordinator.addPersistentStore(ofType: NSSQLiteStoreType, configurationName: nil, at: persistentStoreURL, options: options)
+
+        } catch {
+            let addPersistentStoreError = error as NSError
+
+            print("Unable to Add Persistent Store")
+            print("\(addPersistentStoreError.localizedDescription)")
+        }
     }
 
 }
