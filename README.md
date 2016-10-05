@@ -1,29 +1,52 @@
-### Passing It Around
+### Give It Time
 
 #### Author: Bart Jacobs
 
-# Passing It Around
+The Core Data stack we have built in this series has grown quite a bit in complexity. But if you have a good grasp of the framework, it isn't rocket science. In this lesson, we add the last piece of the puzzle.
 
-The Core Data stack we have built in the previous lessons is slowly taking shape. With every iteration, we add a dash of complexity in return for a few key advantages.
+## Blocking the Main Thread
 
-The Core Data stack is set up and managed by the `CoreDataManager` class. It provides access to the main managed object context, neatly hiding the private managed object context, the managed object model, and the persistent store coordinator from the rest of the application.
+The implementation of the closure in which we instantiate the persistent store coordinator currently looks like this.
 
-## One Instance To Rule Them All
+```language-swift
+fileprivate lazy var persistentStoreCoordinator: NSPersistentStoreCoordinator? = {
+    guard let managedObjectModel = self.managedObjectModel else {
+        return nil
+    }
 
-The majority of applications need only one Core Data stack, which implies that a single instance of the `CoreDataManager` class suffices. At the mention of the word **single**, a surprising number of developers have the urge to turn the `CoreDataManager` instance into a singleton. While I don't have any objections against the singleton pattern, I have a strong opinion about the motivation for using this controversial pattern.
+    // Helper
+    let persistentStoreURL = self.persistentStoreURL
 
-> "In software engineering, the singleton pattern is a design pattern that restricts the instantiation of a class to one object. This is useful when exactly one object is needed to coordinate actions across the system." — [Wikipedia](https://en.wikipedia.org/wiki/Singleton_pattern)
+    // Initialize Persistent Store Coordinator
+    let persistentStoreCoordinator = NSPersistentStoreCoordinator(managedObjectModel: managedObjectModel)
 
-Does the above definition of the singleton pattern surprise you? Many developers create singletons for a different reason, that is, providing easy access to the singleton object. This, however, is a byproduct of the singleton pattern. It is not the goal of the singleton pattern.
+    do {
+        let options = [ NSMigratePersistentStoresAutomaticallyOption : true, NSInferMappingModelAutomaticallyOption : true ]
+        try persistentStoreCoordinator.addPersistentStore(ofType: NSSQLiteStoreType, configurationName: nil, at: persistentStoreURL, options: options)
 
-By **easy** access I mean of course **global** access. That is the motivation many developers have when using the singleton pattern. But what is wrong with a globally accessible object?
+    } catch {
+        let addPersistentStoreError = error as NSError
 
-While I don't want to dive into the details of why globals are a bad idea, I do want to emphasize the drawbacks of the singleton pattern when used incorrectly, that is, for global access to a single object.
+        print("Unable to Add Persistent Store")
+        print("\(addPersistentStoreError.localizedDescription)")
+    }
 
-Making an object globally accessible instead of passing it around is considered an anti-pattern. Whenever you are about to create a singleton, consider why it is necessary to make it a globally accessible object. Is it convenience? Is there an alternative approach that also solves the problem?
+    return persistentStoreCoordinator
+}()
+```
 
-Another reason for not turning the `CoreDataManager` instance into a singleton is **dependency management**. Globally accessible objects that are used in various places of a project obfuscate the dependencies of the project. A much better approach is to use dependency injection. I have written several articles about dependency injection because I really enjoy the simplicity and transparency of dependency injection. It is much easier than most developers think. I like to quote James Shore whenever I discuss dependency injection.
+In a `do-catch` statement, we add the persistent store to the persistent store coordinator. What [Apple's documentation](https://developer.apple.com/reference/coredata/nspersistentstorecoordinator/1468860-addpersistentstore) doesn't mention is that `addPersistentStore(ofType:configurationName:at:options:)` doesn't return immediately. It can return in a fraction of a second or it can take longer, much longer. And that can be a problem.
 
-> "Dependency injection is a 25-dollar term for a 5-cent concept." — [James Shore](http://www.jamesshore.com/Blog/Dependency-Injection-Demystified.html)
+If the persistent store needs to be migrated, for example, adding the persistent store can take longer than you anticipated. And the time it takes differs from user to user. If the user has added thousands of records to the persistent store and uses an older device, it can take longer.
 
-**Read this article on [Cocoacasts](https://cocoacasts.com/passing-it-around/)**.
+This isn't a problem were it not that we add the persistent store on the main thread. We can resolve this by adding the persistent store on a background thread using grand central dispatch.
+
+## Accessing the Core Data Stack
+
+Adding the persistent store on a background thread is only half the solution. If the application attempts to access the Core Data stack before it is initialized, bad things can happen. The behavior is undefined. This means that we need to notify the application when it is safe to access the Core Data stack, that is, when it is initialized and ready to use.
+
+This isn't difficult either. We pass the Core Data manager a closure, which it invokes when the Core Data stack is initialized. The application can then respond appropriately.
+
+Now that we know what which changes we need to make, it is time to refactor the `CoreDataManager` class.
+
+**Read this article on [Cocoacasts](https://cocoacasts.com/give-it-time/)**.
